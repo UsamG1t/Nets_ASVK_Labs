@@ -1,8 +1,8 @@
-VLAN — Virtual Local Area Network — представляет собой сеть, которая поддерживает работу с семейством протоколов [IEEE_802.1Q](https://en.wikipedia.org/wiki/IEEE_802.1Q), согласно которым фреймы снабжаются дополнительным идентификатором виртуальной сети (тегом `VID`), с помощью которого производится дополнительная фильтрация и сортировка фреймов на интерфейсном уровне.
+VLAN — Virtual Local Area Network — технология, которая позволяет разделить одну физическую сеть на несколько логических подсетей, независимо от их физического расположения. В данной лабораторной для огранизации VLAN-ов используется протокол [IEEE_802.1Q](https://en.wikipedia.org/wiki/IEEE_802.1Q), в котором Ethernet-фреймы снабжаются дополнительным идентификатором виртуальной сети (тегом `VID`).
 
 ![](Attached_materials/IEEE_802_1Q.png)
 
-Реализуем некоторую сетевую структуру с использованием VLAN:
+В предлагаемой топологии между любыми двумя узлами `PC` и `com` циркулируют обычные Ethernet-фреймы, а между узлами `comleft` и `comright` — любые модифицированные 802.1Q (т. н. `trunk`). При этом фреймы, получаемые от `PC1` и `PC4` помечаются одним `VID`, а от `PC2` и `PC3` — двумя другими. Таким образом `PC1` и `PC4` образуют единый VLAN и доступны друг для друга, а `PC2` и `PC3` находятся в изолированных VLAN-ах с единственным абонентом в каждом.
 
 ![](Attached_materials/04_VLAN_Topology.png)
 
@@ -25,187 +25,143 @@ VLAN — Virtual Local Area Network — представляет собой се
 	 + Adapter2 — right3
  + pc4:
 	 + Adapter2 — right4
- 
 
-Для связи абонентов им необходимо выдать IP-адреса. Для этого каждый из сетевых интерфейсов необходимо активировать (напоминаем, что в самих ВМ сетевые интерфейсы именуются eth0-eth3 для Adapter1-Adapter4 соответственно) , после чего каждому интерфейсу присвоить свой IP-адреса (поскольку все абоненты находятся в разных сетях, никакой связи сейчас, естественно, между ними не будет).
+
+Для связи абонентов им необходимо выдать IP-адреса. Для этого каждый из сетевых интерфейсов необходимо активировать (напоминаем, что в самих ВМ сетевые интерфейсы именуются eth0-eth3 для Adapter1-Adapter4 соответственно) , после чего каждому интерфейсу присвоить свой IP-адрес (поскольку все абоненты находятся в разных сетях, никакой связи сейчас, естественно, между ними не будет).
 
 `@pc1`
 ```console
-[root@pc1 ~]# ip link set eth1 up  
-[root@pc1 ~]# ip addr add dev eth1 10.0.0.1/24  
-[root@pc1 ~]#
+[root@pc1 ~]# ip link set eth1 up
+[root@pc1 ~]# ip addr add dev eth1 10.0.0.1/24
 ```
 
 `@pc2`
 ```console
-[root@pc2 ~]# ip link set eth1 up  
-[root@pc2 ~]# ip addr add dev eth1 10.0.0.2/24  
-[root@pc2 ~]#
+[root@pc2 ~]# ip link set eth1 up
+[root@pc2 ~]# ip addr add dev eth1 10.0.0.2/24
 ```
 
 `@pc3`
 ```console
-[root@pc3 ~]# ip link set eth1 up  
-[root@pc3 ~]# ip addr add dev eth1 10.0.0.3/24  
-[root@pc3 ~]#
+[root@pc3 ~]# ip link set eth1 up
+[root@pc3 ~]# ip addr add dev eth1 10.0.0.3/24
 ```
 
 `@pc4`
 ```console
-[root@pc4 ~]# ip link set eth1 up  
-[root@pc4 ~]# ip addr add dev eth1 10.0.0.4/24  
-[root@pc4 ~]#
+[root@pc4 ~]# ip link set eth1 up
+[root@pc4 ~]# ip addr add dev eth1 10.0.0.4/24
 ```
 
 Следующим шагом необходимо организовать соединение разных сетевых интерфейсов. `comleft` и `comright` выступают здесь в роли _сетевых мостов_ — сетевых устройств, позволяющих обеспечивать целевую маршрутизацию данных _не выше интерфейсного уровня_. Для реализации поведения сетевого моста на машинах нужно задать специальные виртуальные интерфейсы типа bridge, через которые будут объединяться интерфейсы разных каналов. Данные сетевые интерфейсы также будут обеспечивать фильтрацию фреймов по тегам VLAN, для этого при их создании необходимо указать параметр `vlan_filtering`:
 
 `@comleft`
 ```console
-[root@comleft ~]# ip link add dev br0 type bridge vlan_filtering 1  
-[root@comleft ~]# ip link set eth1 master br0  
-[root@comleft ~]# ip link set eth2 master br0  
+[root@comleft ~]# ip link add dev br0 type bridge vlan_filtering 1
+[root@comleft ~]# ip link set eth1 master br0
+[root@comleft ~]# ip link set eth2 master br0
 [root@comleft ~]# ip link set eth3 master br0
 ```
 
 `@comright`
 ```console
-[root@comright ~]# ip link add dev br0 type bridge vlan_filtering 1  
-[root@comright ~]# ip link set eth1 master br0  
-[root@comright ~]# ip link set eth2 master br0  
-[root@comright ~]# ip link set eth3 master br0  
+[root@comright ~]# ip link add dev br0 type bridge vlan_filtering 1
+[root@comright ~]# ip link set eth1 master br0
+[root@comright ~]# ip link set eth2 master br0
+[root@comright ~]# ip link set eth3 master br0
 ```
 
 Настроим фильтрацию VLAN. Для этого с помощью команды `bridge vlan` укажем, какой интерфейс фреймы с каким тегом будет обрабатывать. При этом для интерфейсов, ведущих к компьютерам непосредственно сделаем отправку фреймов без тега (при обработке на интерфейсе пропускаться в канал будут лишь помеченные фреймы, но перед самой передачей тег будет сниматься). Интерфейс, объединяющий коммутаторы, напротив, должен пересылать только помеченные фреймы.
 
 `@comleft`
 ```console
-[root@comleft ~]# bridge vlan add vid 2 dev eth3 pvid untagged       
-[root@comleft ~]# bridge vlan add vid 4 dev eth2 pvid untagged  
+[root@comleft ~]# bridge vlan add vid 2 dev eth3 pvid untagged
+[root@comleft ~]# bridge vlan add vid 4 dev eth2 pvid untagged
 [root@comleft ~]# bridge vlan add vid 2 dev eth1
+[root@comleft ~]# bridge vlan add vid 3 dev eth1
 [root@comleft ~]# bridge vlan add vid 4 dev eth1
 ```
 
 `@comright`
 ```console
-[root@comright ~]# bridge vlan add vid 3 dev eth3 pvid untagged       
-[root@comright ~]# bridge vlan add vid 4 dev eth2 pvid untagged  
+[root@comright ~]# bridge vlan add vid 3 dev eth3 pvid untagged
+[root@comright ~]# bridge vlan add vid 4 dev eth2 pvid untagged
+[root@comright ~]# bridge vlan add vid 2 dev eth1
 [root@comright ~]# bridge vlan add vid 3 dev eth1
 [root@comright ~]# bridge vlan add vid 4 dev eth1
 ```
 
-Теперь необходимо поднять все интерфейсы. Можно перебрать их руками, а можно воспользоваться циклом языка склейки, встроенном в интерпретатор `shell`:
+Теперь необходимо поднять все интерфейсы. Можно перебрать их руками, а можно воспользоваться циклом языка склейки, встроенным в интерпретатор `shell`:
 
 `@comleft`
 ```console
-[root@comleft ~]# for I in `ls /sys/class/net`; do ip link set $I up; done  
-[root@comleft ~]#
+[root@comleft ~]# for I in `ls /sys/class/net`; do ip link set $I up; done
 ```
 
 `@comright`
 ```console
-[root@comright ~]# for I in `ls /sys/class/net`; do ip link set $I up; done  
-[root@comright ~]#
-```
-
-В настройках интерфейсов можно отдельно обратиться с информационным запросом к `VLAN`-интерфейсам:
-
-`@comleft`
-```console
-[root@comleft ~]# ip -d link show vlan4  
-7: vlan4@eth1: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000  
-   link/ether 08:00:27:ab:ae:51 brd ff:ff:ff:ff:ff:ff promiscuity 0 allmulti 0 minmtu 0 maxmtu 65535    
-   vlan protocol 802.1Q id 4 <REORDER_HDR> numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 tso_max_size 65536 tso_max_segs 65535 gro_max_size 65536 gso_ipv4_max_size 65536 gro_ipv4_max_size 65536    
-[root@comleft ~]#
+[root@comright ~]# for I in `ls /sys/class/net`; do ip link set $I up; done
 ```
 
 Все настройки, связанные с VLAN, можно посмотреть специальной командой `bridge vlan show`
 
 `@comleft`
 ```console
-[root@comleft ~]# bridge vlan show  
-port              vlan-id     
-eth1              1 PVID Egress Untagged  
-                 2  
-                 4  
-eth2              1 Egress Untagged  
-                 4 PVID Egress Untagged  
-eth3              1 Egress Untagged  
-                 2 PVID Egress Untagged  
-br0               1 PVID Egress Untagged  
+[root@comleft ~]# bridge vlan show
+port              vlan-id
+eth1              1 PVID Egress Untagged
+                  2
+                  3
+                  4
+eth2              1 Egress Untagged
+                  4 PVID Egress Untagged
+eth3              1 Egress Untagged
+                  2 PVID Egress Untagged
+br0               1 PVID Egress Untagged
 [root@comleft ~]#
-```
-
-Командой `ip a` проверим работу всех интерфейсов и зависимости между ними. Заметим, что явно виртуальных интерфейсов VLAN в системе нет, отслеживание и тегирование интерфейсов происходит неявно на коммутаторах.
-
-`@comright`
-```console
-[root@comright ~]# ip a  
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000  
-   link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00  
-   inet 127.0.0.1/8 scope host lo  
-      valid_lft forever preferred_lft forever  
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN group default qlen 1000  
-   link/ether 08:00:27:cc:d4:60 brd ff:ff:ff:ff:ff:ff  
-   altname enp0s3  
-   altname enx080027ccd460  
-3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UP group default qlen 1000  
-   link/ether 08:00:27:af:53:50 brd ff:ff:ff:ff:ff:ff  
-   altname enp0s8  
-   altname enx080027af5350  
-4: eth2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UP group default qlen 1000  
-   link/ether 08:00:27:74:fd:d2 brd ff:ff:ff:ff:ff:ff  
-   altname enp0s9  
-   altname enx08002774fdd2  
-5: eth3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UP group default qlen 1000  
-   link/ether 08:00:27:eb:16:15 brd ff:ff:ff:ff:ff:ff  
-   altname enp0s10  
-   altname enx080027eb1615  
-6: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000  
-   link/ether 08:00:27:74:fd:d2 brd ff:ff:ff:ff:ff:ff  
-[root@comright ~]#
 ```
 
 Теперь попробуем пропустить между абонентами трафик: между `pc1` и `pc4` будет проходить соединение, между любой другой парой абонентов — нет.
 
 `@pc3`
 ```console
-[root@pc3 ~]# ping -c5 10.0.0.2  
-PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.  
-From 10.0.0.3 icmp_seq=1 Destination Host Unreachable  
-ping: sendmsg: No route to host  
-From 10.0.0.3 icmp_seq=2 Destination Host Unreachable  
-From 10.0.0.3 icmp_seq=3 Destination Host Unreachable  
-From 10.0.0.3 icmp_seq=5 Destination Host Unreachable  
-  
---- 10.0.0.2 ping statistics ---  
-5 packets transmitted, 0 received, +4 errors, 100% packet loss, time 4105ms  
-pipe 3  
-[root@pc3 ~]# ping -c5 10.0.0.1  
-PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.  
-From 10.0.0.3 icmp_seq=1 Destination Host Unreachable  
-From 10.0.0.3 icmp_seq=2 Destination Host Unreachable  
-From 10.0.0.3 icmp_seq=3 Destination Host Unreachable  
-From 10.0.0.3 icmp_seq=4 Destination Host Unreachable  
-From 10.0.0.3 icmp_seq=5 Destination Host Unreachable  
-  
---- 10.0.0.1 ping statistics ---  
-5 packets transmitted, 0 received, +5 errors, 100% packet loss, time 4114ms  
-pipe 3  
+[root@pc3 ~]# ping -c5 10.0.0.2
+PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
+From 10.0.0.3 icmp_seq=1 Destination Host Unreachable
+ping: sendmsg: No route to host
+From 10.0.0.3 icmp_seq=2 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=3 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=5 Destination Host Unreachable
+
+--- 10.0.0.2 ping statistics ---
+5 packets transmitted, 0 received, +4 errors, 100% packet loss, time 4105ms
+pipe 3
+[root@pc3 ~]# ping -c5 10.0.0.1
+PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+From 10.0.0.3 icmp_seq=1 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=2 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=3 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=4 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=5 Destination Host Unreachable
+
+--- 10.0.0.1 ping statistics ---
+5 packets transmitted, 0 received, +5 errors, 100% packet loss, time 4114ms
+pipe 3
 [root@pc3 ~]#
 ```
 
 `@pc4`
 ```console
-[root@pc4 ~]# ping -c5 10.0.0.1  
-PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.  
-64 bytes from 10.0.0.1: icmp_seq=1 ttl=64 time=0.948 ms  
-64 bytes from 10.0.0.1: icmp_seq=2 ttl=64 time=0.792 ms  
-64 bytes from 10.0.0.1: icmp_seq=3 ttl=64 time=0.663 ms  
-64 bytes from 10.0.0.1: icmp_seq=4 ttl=64 time=1.08 ms  
-64 bytes from 10.0.0.1: icmp_seq=5 ttl=64 time=1.28 ms  
-  
---- 10.0.0.1 ping statistics ---  
-5 packets transmitted, 5 received, 0% packet loss, time 4064ms  
-rtt min/avg/max/mdev = 0.663/0.953/1.282/0.217 ms  
+[root@pc4 ~]# ping -c5 10.0.0.1
+PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+64 bytes from 10.0.0.1: icmp_seq=1 ttl=64 time=0.948 ms
+64 bytes from 10.0.0.1: icmp_seq=2 ttl=64 time=0.792 ms
+64 bytes from 10.0.0.1: icmp_seq=3 ttl=64 time=0.663 ms
+64 bytes from 10.0.0.1: icmp_seq=4 ttl=64 time=1.08 ms
+64 bytes from 10.0.0.1: icmp_seq=5 ttl=64 time=1.28 ms
+
+--- 10.0.0.1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4064ms
+rtt min/avg/max/mdev = 0.663/0.953/1.282/0.217 ms
 [root@pc4 ~]#
 ```
