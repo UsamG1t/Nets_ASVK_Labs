@@ -108,16 +108,16 @@ VLAN — Virtual Local Area Network — технология, которая п�
 `@comleft`
 ```console
 [root@comleft ~]# bridge vlan show
-port              vlan-id
-eth1              1 PVID Egress Untagged
-                  2
-                  3
-                  4
-eth2              1 Egress Untagged
-                  4 PVID Egress Untagged
-eth3              1 Egress Untagged
-                  2 PVID Egress Untagged
-br0               1 PVID Egress Untagged
+port              vlan-id
+eth1              1 PVID Egress Untagged
+                  2
+                  3
+                  4
+eth2              1 Egress Untagged
+                  4 PVID Egress Untagged
+eth3              1 Egress Untagged
+                  2 PVID Egress Untagged
+br0               1 PVID Egress Untagged
 [root@comleft ~]#
 ```
 
@@ -164,4 +164,54 @@ PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
 5 packets transmitted, 5 received, 0% packet loss, time 4064ms
 rtt min/avg/max/mdev = 0.663/0.953/1.282/0.217 ms
 [root@pc4 ~]#
+```
+
+Запустим на `comleft` команду `tcpdump -xx -i eth1`, которая будет отслеживать трафик на интерфейсе `eth1`:
+
+`@comleft`
+```console
+[root@comleft ~]# tcpdump -xx -i eth1
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+
+```
+
+Создадим трафик с `PC3` на `PC1`:
+
+`@pc3`
+```console
+[root@pc3 ~]# ping -c3 10.0.0.1
+PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+From 10.0.0.3 icmp_seq=1 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=2 Destination Host Unreachable
+From 10.0.0.3 icmp_seq=3 Destination Host Unreachable
+
+--- 10.0.0.1 ping statistics ---
+3 packets transmitted, 0 received, +3 errors, 100% packet loss, time 2077ms
+pipe 3
+[root@pc3 ~]#
+```
+
+По полученному трафику убеждаемся, что пакеты доходят по trunk-каналу до `comleft`, но дальше
+
+`@comleft`
+```console
+[root@comleft ~]# tcpdump -xx -i eth1
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+22:18:47.881650 ARP, Request who-has 10.0.0.1 tell 10.0.0.3, length 46
+       0x0000:  ffff ffff ffff 0800 27cc 8f19 8100 0003
+       0x0010:  0806 0001 0800 0604 0001 0800 27cc 8f19
+       0x0020:  0a00 0003 0000 0000 0000 0a00 0001 0000
+       0x0030:  0000 0000 0000 0000 0000 0000 0000 0000
+22:18:48.933866 ARP, Request who-has 10.0.0.1 tell 10.0.0.3, length 46
+       0x0000:  ffff ffff ffff 0800 27cc 8f19 8100 0003
+       0x0010:  0806 0001 0800 0604 0001 0800 27cc 8f19
+       0x0020:  0a00 0003 0000 0000 0000 0a00 0001 0000
+       0x0030:  0000 0000 0000 0000 0000 0000 0000 0000
+22:18:49.957684 ARP, Request who-has 10.0.0.1 tell 10.0.0.3, length 46
+       0x0000:  ffff ffff ffff 0800 27cc 8f19 8100 0003
+       0x0010:  0806 0001 0800 0604 0001 0800 27cc 8f19
+       0x0020:  0a00 0003 0000 0000 0000 0a00 0001 0000
+       0x0030:  0000 0000 0000 0000 0000 0000 0000 0000
 ```
