@@ -95,6 +95,7 @@
 `@S1` : `/etc/bird/bird.conf`
 ```bird
 router id 10.0.4.254;
+router id 10.30.100.1;
 
 protocol kernel {
       scan time 20;
