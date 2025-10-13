@@ -411,3 +411,58 @@ rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
 | 8      | 1. Создать топологию, указанную на рисунке<br>2. Убедиться, что `PC2` не пингуется с `PC1`<br>3. Настроить OSPF так, чтобы `R2` мог бы пинговать `PC2` и `PC1`<br>4. Выполнить `traceroute` с `R2` на `PC2` и `PC1`<br>                     |
 | 9      | 1. Создать топологию, указанную на рисунке<br>2. Убедиться, что `PC2` не пингуется с `PC1`<br>3. Настроить OSPF так, чтобы `R2` мог бы пинговать `PC2` , но не мог бы пинговать `PC1`<br>4. Выполнить `traceroute` с `R2` на `PC2` и `PC1`  |
 | 10     | 1. Создать топологию, указанную на рисунке<br>2. Убедиться, что `PC2` не пингуется с `PC1`<br>3. Настроить OSPF так, чтобы `R2` мог бы пинговать `PC1`, но не мог бы пинговать `PC2`<br>4. Выполнить `traceroute` с `R2` на `PC2` и `PC1`   |
+
+Запустить [отчёты](../02_SystemGreetings/Знакомство%20с%20системой.md#Сдача-самостоятельных-работ) на каждой машине и выполнить соответствующие команды:
+
+ + `report 7 pc1`
+	 + ip a show eth1
+	 + ip route
+	 + cat /etc/bird/bird.conf
+	 + ping -fc3 10.0.50.1
+	 + ping -fc3 10.0.30.2
+	 + ping -fc3 10.0.40.3
+	 + ping -fc3 10.0.222.22
+	 + traceroute 10.0.222.22
+	 + traceroute 10.0.40.2
+ + `report 7 pc2`
+	 + ip a show eth1
+	 + ip route
+	 + cat /etc/bird/bird.conf
+	 + ping -fc3 10.0.50.1
+	 + ping -fc3 10.0.30.2
+	 + ping -fc3 10.0.40.3
+	 + ping -fc3 10.0.111.11
+	 + traceroute 10.0.111.11
+	 + traceroute 10.0.40.2
+ + `report 7 r1`
+	 + ip a show
+	 + ip route
+	 + cat /etc/bird/bird.conf
+	 + ping -fc3 10.0.30.2
+	 + ping -fc3 10.0.40.3
+	 + ping -fc3 10.0.111.11
+	 + ping -fc3 10.0.222.22
+	 + traceroute 10.0.222.22
+	 + traceroute 10.0.111.11
+ + `report 7 r2`
+	 + ip a show
+	 + ip route
+	 + cat /etc/bird/bird.conf
+	 + ping -fc3 10.0.50.1
+	 + ping -fc3 10.0.40.3
+	 + ping -fc3 10.0.111.11
+	 + ping -fc3 10.0.222.22
+	 + traceroute 10.0.222.22
+	 + traceroute 10.0.111.11
+ + `report 7 r3`
+	 + ip a show
+	 + ip route
+	 + cat /etc/bird/bird.conf
+	 + ping -fc3 10.0.30.2
+	 + ping -fc3 10.0.50.1
+	 + ping -fc3 10.0.111.11
+	 + ping -fc3 10.0.222.22
+	 + traceroute 10.0.222.22
+	 + traceroute 10.0.111.11
+
+Полученные отчёты `report.07.pc1`, `report.07.pc2`, `report.07.r1`, `report.07.r2`, `report.07.r3` через последовательный порт перенести из виртуальной машины отчёты и прислать их преподавателю с подписью выполненного варианта.
