@@ -1,0 +1,306 @@
+VPN — Virtual Private Network — технология, позволяющая объединять в единую адресную "локальную" сеть устройства, физически не находящихся в ней (например, при подключении рабочего ноутбука из командировки в локальную сеть компании). Кроме, непосредственно, создания туннелей в VPN возможно настраивать шифрование проходящего трафика.
+
+![](Attached_materials/11_WG.png)
+
+Для работы создадим 3 [клона](../01_FirstStart/Настройка%20системы%20для%20выполнения%20лабораторных.md) согласно топологии сети. Для создания соединений между машинами необходимо в VirtualBox настроить сетевые интерфейсы (описание настройки подключения находится в разделе [настройки сетевых подключений](../02_SystemGreetings/Знакомство%20с%20системой.md#работа-с-сетевыми-интерфейсами)):
+
+ + `client`:
+	 + Adapter2 — outnet
+ + `network`:
+	 + Adapter2 — outnet
+	 + Adapter3 — innet
+ + `company`:
+	 + Adapter2 — innet
+
+Для настройки интерфейсов и маршрутов по умолчанию воспользуемся  комплексом инициализирующих программ [SystemD](https://ru.wikipedia.org/wiki/Systemd), а именно одной из его подсистем — `systemd-networkd`,  отвечающей за автонастройку всех сетевых служб в Linux. Так, например, для задания работы интерфейса eth1, установки на него IP-адреса и описания маршрута по умолчанию необходимо просто создать данный файл:
+
+`@client`: `/etc/systemd/network/50-outnet.network`
+```console
+[Match]
+Name=eth1
+
+[Network]
+Address=10.0.12.1/24
+
+[Route]
+Gateway=10.0.12.2
+Destination=10.0.0.0/8
+```
+
+Согласно настройкам `.network`-файла будет поднят интерфейс eth1, ему будет присвоен адрес `10.0.12.1/24`, а в таблицу маршрутизации будет добавлена запись, согласно которой все пакеты, отправляемые на адреса сети `10.0.0.0/8` будут первоначально направляться на адрес `10.0.12.2`.
+
+С помощью `systemd-networkd` можно также создавать и новые интерфейсы, однако это потребует создания отдельного файла, поэтому добавление LoopBack-интерфейса мы сделаем вручную:
+
+`@client`
+```console
+[root@client ~]# ip link set lo0 up
+[root@client ~]# ip addr add dev lo0 10.0.1.1/24
+```
+
+Аналогичным образом настроим интерфейсы на абоненте `@company`:
+
+`@company`: `/etc/systemd/network/50-outnet.network`
+```console
+[Match]
+Name=eth1
+
+[Network]
+Address=10.0.23.3/24
+
+[Route]
+Gateway=10.0.23.2
+Destination=10.0.0.0/8
+```
+
+`@company`
+```console
+[root@company ~]# ip link set lo0 up
+[root@company ~]# ip addr add dev lo0 10.0.3.3/24
+[root@company ~]#
+```
+
+Абсолютно таким же образом может быть настроен абонент `@network`. Но для закрепления ручной настройки явно зададим ему все параметры:
+
+`@network`
+```console
+[root@network ~]# ip link set eth1 up
+[root@network ~]# ip link set eth2 up
+[root@network ~]# ip addr add dev eth1 10.0.12.2/24
+[root@network ~]# ip addr add dev eth2 10.0.23.2/24
+[root@network ~]# sysctl net.ipv4.conf.all.forwarding=1
+[root@network ~]#
+[root@network ~]# ip route add 10.0.1.1 via 10.0.12.1
+[root@network ~]# ip route add 10.0.3.3 via 10.0.23.3
+[root@network ~]#
+```
+
+Для запуска `systemd-networkd` необходимо активировать сервис с помощью служебной команды `systemctl enable --now` (`enable` включает возможность активации сервиса при включении устройства. Флаг `--now` включает сервис непосредственно сейчас). После включения все соединения становятся активными, и трафик идёт без проблем:
+
+`@client`
+```console
+[root@client ~]# systemctl enable --now systemd-networkd
+Created symlink '/etc/systemd/system/dbus-org.freedesktop.network1.service' -> '/usr/lib/systemd/system
+/systemd-networkd.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/systemd-networkd.service' -> '/usr/lib/sys
+temd/system/systemd-networkd.service'.
+Created symlink '/etc/systemd/system/sockets.target.wants/systemd-networkd.socket' -> '/usr/lib/systemd
+/system/systemd-networkd.socket'.
+Created symlink '/etc/systemd/system/sysinit.target.wants/systemd-network-generator.service' -> '/usr/l
+ib/systemd/system/systemd-network-generator.service'.
+Created symlink '/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service'
+-> '/usr/lib/systemd/system/systemd-networkd-wait-online.service'.
+[root@client ~]#
+```
+
+`@company`
+```console
+[root@company ~]# systemctl enable --now systemd-networkd
+Created symlink '/etc/systemd/system/dbus-org.freedesktop.network1.service' -> '/usr/lib/systemd/system
+/systemd-networkd.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/systemd-networkd.service' -> '/usr/lib/sys
+temd/system/systemd-networkd.service'.
+Created symlink '/etc/systemd/system/sockets.target.wants/systemd-networkd.socket' -> '/usr/lib/systemd
+/system/systemd-networkd.socket'.
+Created symlink '/etc/systemd/system/sysinit.target.wants/systemd-network-generator.service' -> '/usr/l
+ib/systemd/system/systemd-network-generator.service'.
+Created symlink '/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service'
+-> '/usr/lib/systemd/system/systemd-networkd-wait-online.service'.
+[root@company ~]#
+[root@company ~]# ping -c5 10.0.12.1
+PING 10.0.12.1 (10.0.12.1) 56(84) bytes of data.
+64 bytes from 10.0.12.1: icmp_seq=1 ttl=63 time=1.80 ms
+64 bytes from 10.0.12.1: icmp_seq=2 ttl=63 time=0.684 ms
+64 bytes from 10.0.12.1: icmp_seq=3 ttl=63 time=1.03 ms
+64 bytes from 10.0.12.1: icmp_seq=4 ttl=63 time=0.990 ms
+64 bytes from 10.0.12.1: icmp_seq=5 ttl=63 time=1.06 ms
+
+--- 10.0.12.1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4038ms
+rtt min/avg/max/mdev = 0.684/1.113/1.800/0.369 ms
+[root@company ~]#
+```
+
+`@client`
+```console
+[root@client ~]# ping -c3 -I 10.0.1.1 10.0.3.3
+PING 10.0.3.3 (10.0.3.3) from 10.0.1.1 : 56(84) bytes of data.
+64 bytes from 10.0.3.3: icmp_seq=1 ttl=63 time=0.842 ms
+64 bytes from 10.0.3.3: icmp_seq=2 ttl=63 time=0.861 ms
+64 bytes from 10.0.3.3: icmp_seq=3 ttl=63 time=0.814 ms
+
+--- 10.0.3.3 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2048ms
+rtt min/avg/max/mdev = 0.814/0.839/0.861/0.019 ms
+[root@client ~]#
+```
+
+Теперь добавим ограничение в сети: поскольку в реальной сети `TCP`-соединение часто используется для сервисной информации, некоторые маршруты могут быть закрыты для потусторонних `TCP`-соединений, в отличие от `UDP`, для которого существование какого-то специализированного протокола странного вида - обычное дело. Сымитируем в нашей сети запрет любых TCP-соединений. Настраивать запрет будем с помощью ещё одного сервиса — межсетевого экрана (firewall-а) [`nftables`](https://wiki.nftables.org/). А проверку TCP-соединения будем совершать с помощью SSH-соединения с `@company` на `@client`:
+
+`@company`
+```console
+[root@company ~]# ssh 10.0.12.1
+The authenticity of host '10.0.12.1 (10.0.12.1)' can't be established.
+ED25519 key fingerprint is SHA256:BxaYoHAW5ddfM6EwmgSAZ2tKXCH0zoppLfEcQ8YiGdg.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '10.0.12.1' (ED25519) to the list of known hosts.
+Last login: Sun Oct 19 13:19:43 2025
+[root@client ~]#
+logout
+Connection to 10.0.12.1 closed.
+[root@company ~]#
+```
+
+Теперь запустим сервис и добавим правило, запрещающее TCP:
+
+`@network`
+```console
+[root@network ~]# systemctl enable --now nftables.service
+Created symlink '/etc/systemd/system/multi-user.target.wants/nftables.service' -> '/usr/lib/systemd/system/nftables.service'.
+[root@network ~]# nft add rule inet filter forward ip protocol tcp reject
+[root@network ~]#
+```
+
+`@company`
+```console
+[root@company ~]# ssh 10.0.12.1
+ssh: connect to host 10.0.12.1 port 22: Connection refused
+[root@company ~]#
+```
+
+Соединение стало невозможным (при этом заметим, что ping идти не перестал, поскольку ICMP-пакеты не строят TCP-соединение между абонентами).
+
+Для настройки соединения воспользуемся VPN-протоколом WireGuard. В рамках протокола передаются не TCP, а UDP-пакеты. Особенностью является схема ассиметричного шифрования. Классическая схема с закрытым и открытым ключом, которые генерируются и передаются администратором сети, позволяет безопасно передавать сообщения. Сами ключи можно дополнительно защищать паролями.
+
+В качестве генератора приватного ключа WireGuard может выступать любой случайный стартовый набор символов, преобразованный в формат Base64. Генерация ключей должна быть абсолютно конфиденциальной для всех сторонних наблюдателей. ***Никогда*** не генерируйте ключи с помощью псевдослучайных последовательностей или на основе каких-то заведомо известных данных. Данный пример генерации ключей носит ***исключительно*** образовательный характер.
+
+Публичный ключ генерируется на основе приватного с помощью специальной команды. Для упрощения работы (***и строго в рамках лабораторной для образовательных целей***) рекомендуется использовать предложенные команды для генерации ключей (или сразу использовать сгенерированные ключи). Для каждого абонента генерируется его уникальная пара закрытого и открытого ключей.
+
+`@client`
+```console
+[root@client ~]# echo `echo "ClientPrivateKeyNeverDoThisMethodIRL1234567"  | base64 -d | base64` | tee
+/dev/stderr | wg pubkey
+base64: invalid input
+ClientPrivateKeyNeverDoThisMethodIRL1234564=
+R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=
+[root@client ~]# echo `echo "CompanyPrivateKeyNeverDoThisMethodIRL123456"  | base64 -d | base64` | wg p
+ubkey
+base64: invalid input
+fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=
+[root@client ~]#
+```
+
+`@company`
+```console
+[root@company ~]# echo `echo "CompanyPrivateKeyNeverDoThisMethodIRL123456"  | base64 -d | base64` | tee
+/dev/stderr | wg pubkey
+base64: invalid input
+CompanyPrivateKeyNeverDoThisMethodIRL123454=
+fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=
+[root@company ~]# echo `echo "ClientPrivateKeyNeverDoThisMethodIRL1234567"  | base64 -d | base64` | wg
+pubkey
+base64: invalid input
+R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=
+[root@company ~]#
+```
+
+Для создания соединения необходимо создать специальный WireGuard-интерфейс на каждом абоненте. В качестве приватного ключа используется _свой_ приватный ключ. В описании доступных соединений указывается публичный ключ того, _к кому_ инициируется подключение. Поскольку получателем соединения будет выступать `@client`, укажем порт, на котором он будет ожидать соединения.
+
+`@client`: `/etc/systemd/network/70-wg.netdev`
+```console
+[NetDev]
+Name = wg
+Kind = wireguard
+
+[WireGuard]
+ListenPort = 51820
+PrivateKey = ClientPrivateKeyNeverDoThisMethodIRL1234564=
+
+[WireGuardPeer]
+AllowedIPs = 192.168.0.0/24
+PublicKey = fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=
+```
+
+После создания интерфейса опишем его данные в отдельном файле аналогично описанию для eth1:
+
+`@client`: `/etc/systemd/network/70-wg.network`
+```console
+[Match]
+Name = wg
+
+[Network]
+Address = 192.168.0.1/24
+```
+
+Аналогично настроим интерфейс на `@company`, при этом, поскольку отсюда будет производиться подключение, укажем итоговый адрес подключения — IP-адрес и порт.
+
+`@company`: `/etc/systemd/network/70-wg.netdev`
+```console
+[NetDev]
+Name = wg
+Kind = wireguard
+
+[WireGuard]
+PrivateKey = CompanyPrivateKeyNeverDoThisMethodIRL123454=
+
+[WireGuardPeer]
+AllowedIPs = 192.168.0.0/24
+PublicKey = R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=
+Endpoint = 10.0.1.1:51820
+```
+
+`@company`: `/etc/systemd/network/70-wg.network`
+```console
+[Match]
+Name = wg
+
+[Network]
+Address = 192.168.0.2/24
+```
+
+Поскольку в файл с описанием интерфейса могут обратиться любые демоны или утилиты (при его создании ему автоматически были выданы права 0644), хранение там приватного ключа в чистом виде запрещено `systemd`. Для решения проблемы можно создать отдельный файл с приватным ключом и вписать его в `netdev`-файл через параметр `PrivateKeyFile` или, как сделаем мы, ограничить права для файла только для группы `systemd-network`:
+
+`@client`
+```console
+[root@client ~]# chgrp systemd-network /etc/systemd/network/70-wg.netdev
+[root@client ~]# chmod o-r /etc/systemd/network/70-wg.netdev
+[root@client ~]# systemctl restart systemd-networkd
+[root@client ~]#
+```
+
+`@company`
+```console
+[root@company ~]# chgrp systemd-network /etc/systemd/network/70-wg.netdev
+[root@company ~]# chmod o-r /etc/systemd/network/70-wg.netdev
+[root@company ~]# systemctl restart systemd-networkd
+```
+
+Теперь проверим соединения и убедимся, что всё работает корректно:
+
+`@company`
+```console
+[root@company ~]# ping -c5 192.168.0.1
+PING 192.168.0.1 (192.168.0.1) 56(84) bytes of data.
+64 bytes from 192.168.0.1: icmp_seq=1 ttl=64 time=2.15 ms
+64 bytes from 192.168.0.1: icmp_seq=2 ttl=64 time=0.883 ms
+64 bytes from 192.168.0.1: icmp_seq=3 ttl=64 time=0.909 ms
+64 bytes from 192.168.0.1: icmp_seq=4 ttl=64 time=1.42 ms
+64 bytes from 192.168.0.1: icmp_seq=5 ttl=64 time=2.33 ms
+
+--- 192.168.0.1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4061ms
+rtt min/avg/max/mdev = 0.883/1.540/2.333/0.608 ms
+
+[root@company ~]# ssh 192.168.0.1
+The authenticity of host '192.168.0.1 (192.168.0.1)' can't be established.
+ED25519 key fingerprint is SHA256:BxaYoHAW5ddfM6EwmgSAZ2tKXCH0zoppLfEcQ8YiGdg.
+This host key is known by the following other names/addresses:
+   ~/.ssh/known_hosts:3: 10.0.12.1
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.0.1' (ED25519) to the list of known hosts.
+Last login: Sun Oct 19 13:45:18 2025 from 10.0.23.3
+[root@client ~]#
+logout
+Connection to 192.168.0.1 closed.
+[root@company ~]#
+```
