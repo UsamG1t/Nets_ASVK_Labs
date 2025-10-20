@@ -172,35 +172,41 @@ ssh: connect to host 10.0.12.1 port 22: Connection refused
 
 Для настройки соединения воспользуемся VPN-протоколом WireGuard. В рамках протокола передаются не TCP, а UDP-пакеты. Особенностью является схема ассиметричного шифрования. Классическая схема с закрытым и открытым ключом, которые генерируются и передаются администратором сети, позволяет безопасно передавать сообщения. Сами ключи можно дополнительно защищать паролями.
 
-В качестве генератора приватного ключа WireGuard может выступать любой случайный стартовый набор символов, преобразованный в формат Base64. Генерация ключей должна быть абсолютно конфиденциальной для всех сторонних наблюдателей. ***Никогда*** не генерируйте ключи с помощью псевдослучайных последовательностей или на основе каких-то заведомо известных данных. Данный пример генерации ключей носит ***исключительно*** образовательный характер.
+В качестве приватного ключа WireGuard может выступать любая последовательность из 32 байт. Вернее, 31 байта, 32-ой байт выступает в качестве контрольной суммы над остальными. Публичный ключ генерируется на основе приватного для создания ассиметрично шифрующей пары.
 
-Публичный ключ генерируется на основе приватного с помощью специальной команды. Для упрощения работы (***и строго в рамках лабораторной для образовательных целей***) рекомендуется использовать предложенные команды для генерации ключей (или сразу использовать сгенерированные ключи). Для каждого абонента генерируется его уникальная пара закрытого и открытого ключей.
+Генерация ключей (особенно приватного ключа) должна быть _абсолютно конфиденциальной_ для всех сторонних наблюдателей и _строго невоспроизводимой_. Для генерации ключей на основе случайных чисел используются специальные команды `wg genkey` для приватного ключа и `wg pubkey` для открытого ключа. ***Никогда*** не генерируйте ключи с помощью псевдослучайных последовательностей или на основе каких-то заведомо известных данных.
+
+***Cтрого в рамках лабораторной для образовательных целей*** можно воспользоваться заранее сгенерированными парами ключей:
+
+Для `@client`:
+ + Приватный — `ClientPrivateKeyNeverDoThisMethodIRL1234564=`
+ + Публичный — `R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=`
+
+Для `@company`:
+ + Приватный — `CompanyPrivateKeyNeverDoThisMethodIRL123454=`
+ + Публичный — `fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=`
+
+Однако правильнее (и _рекомендуется_) сгенерировать на каждой машине свою пару ключей и далее пользоваться ими. При этом потребуется копирование из консоли одной ВМ в другую, что может быть невозможно при использовании VirtualBox-консолей управления. При невозможности копирования можно вводить ключи вручную или воспользоваться заранее сгенерированными парами (копирование из основной системы в консоль ВМ поддерживается).
+
+Для генерации ключей можно воспользоваться удобной командой-конвейером, которая выводит приватный и публичный ключи в консоль (_не пользуйтесь_ данной командой _в данном виде_ при реальной настройке. Перенаправляйте выводы команд в файлы с ограниченными правами доступа к ним для безопасности хранения данных):
+
+```
+wg genkey | tee /dev/stderr | wg pubkey
+```
 
 `@client`
 ```console
-[root@client ~]# echo `echo "ClientPrivateKeyNeverDoThisMethodIRL1234567"  | base64 -d | base64` | tee
-/dev/stderr | wg pubkey
-base64: invalid input
-ClientPrivateKeyNeverDoThisMethodIRL1234564=
-R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=
-[root@client ~]# echo `echo "CompanyPrivateKeyNeverDoThisMethodIRL123456"  | base64 -d | base64` | wg p
-ubkey
-base64: invalid input
-fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=
+[root@client ~]# wg genkey | tee /dev/stderr | wg pubkey
+YHbaodB1g6Uh4rXa/Y17gf4t3pjVt68dABYDq79+tVE=
+HjxgpnWK367aURR7x6sy9b8wM3UhDJCbs/5XWGWe6CU=
 [root@client ~]#
 ```
 
 `@company`
 ```console
-[root@company ~]# echo `echo "CompanyPrivateKeyNeverDoThisMethodIRL123456"  | base64 -d | base64` | tee
-/dev/stderr | wg pubkey
-base64: invalid input
-CompanyPrivateKeyNeverDoThisMethodIRL123454=
-fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=
-[root@company ~]# echo `echo "ClientPrivateKeyNeverDoThisMethodIRL1234567"  | base64 -d | base64` | wg
-pubkey
-base64: invalid input
-R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=
+[root@company ~]# wg genkey | tee /dev/stderr | wg pubkey
+OFcPIl8PXbjoPozp9qBH2ZQPOUsr7Qj1ZlyZXeMnMlI=
+V87kz+xm9c1liF0WQpBW33Dep2W8B++xby80SrBJ2Cc=
 [root@company ~]#
 ```
 
@@ -214,11 +220,11 @@ Kind = wireguard
 
 [WireGuard]
 ListenPort = 51820
-PrivateKey = ClientPrivateKeyNeverDoThisMethodIRL1234564=
+PrivateKey = YHbaodB1g6Uh4rXa/Y17gf4t3pjVt68dABYDq79+tVE=
 
 [WireGuardPeer]
 AllowedIPs = 192.168.0.0/24
-PublicKey = fAS3DCTBIIQ3miLTLjuryy0YmZr9HiHTh2sZf9inSi4=
+PublicKey = V87kz+xm9c1liF0WQpBW33Dep2W8B++xby80SrBJ2Cc=
 ```
 
 После создания интерфейса опишем его данные в отдельном файле аналогично описанию для eth1:
@@ -241,11 +247,11 @@ Name = wg
 Kind = wireguard
 
 [WireGuard]
-PrivateKey = CompanyPrivateKeyNeverDoThisMethodIRL123454=
+PrivateKey = OFcPIl8PXbjoPozp9qBH2ZQPOUsr7Qj1ZlyZXeMnMlI=
 
 [WireGuardPeer]
 AllowedIPs = 192.168.0.0/24
-PublicKey = R2Dq51uWpvn/9wo6IweimQrMAcailb6ZMiJmqFepJmU=
+PublicKey = HjxgpnWK367aURR7x6sy9b8wM3UhDJCbs/5XWGWe6CU=
 Endpoint = 10.0.1.1:51820
 ```
 
