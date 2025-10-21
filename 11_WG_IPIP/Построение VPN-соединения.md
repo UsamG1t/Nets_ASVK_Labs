@@ -33,6 +33,7 @@ Destination=10.0.0.0/8
 
 `@client`
 ```console
+[root@client ~]# ip link add dev lo0 type veth
 [root@client ~]# ip link set lo0 up
 [root@client ~]# ip addr add dev lo0 10.0.1.1/24
 ```
@@ -54,6 +55,7 @@ Destination=10.0.0.0/8
 
 `@company`
 ```console
+[root@company ~]# ip link add dev lo0 type veth
 [root@company ~]# ip link set lo0 up
 [root@company ~]# ip addr add dev lo0 10.0.3.3/24
 [root@company ~]#
@@ -309,4 +311,139 @@ Last login: Sun Oct 19 13:45:18 2025 from 10.0.23.3
 logout
 Connection to 192.168.0.1 closed.
 [root@company ~]#
+```
+
+
+## Туннелирование — IP over IP
+
+`IP over IP`, или [`IP in IP`](https://ru.wikipedia.org/wiki/IP_in_IP) - простейшая схема туннелирования, основанная на инкапсуляции одного `IP`-пакета в другой `IP`-пакет. С точки зрения построения пакета данный протокол наращивает ещё один заголовок сетевого уровня на уже существующий. Для обработки таких мета-пакетов необходимо использовать специальный виртуальный интерфейс, который будет обрабатывать специализированный трафик. Данный вид туннелирования позволяет решить проблему, связанную с представлением абонентов участниками одной локальной сети, когда на самом деле маршрут может, вообще говоря, динамически меняться при передаче сообщений в туннеле. Однако важно заметить, что в данной схеме отсутствует шифрование трафика, туннель выполняет исключительно связывающую функцию.
+
+Продолжим работать с имеющейся топологией, однако добавим новые виртуальные интерфейсы:
+
+![](Attached_materials/11_IPIP.png)
+
+`@client`
+```console
+[root@client ~]# ip link add dev lo1 type veth
+[root@client ~]# ip link set lo1 up
+[root@client ~]# ip addr add dev lo1 10.0.11.11/24
+[root@client ~]#
+```
+
+`@company`
+```console
+[root@company ~]# ip link add dev lo1 type veth
+[root@company ~]# ip link set lo1 up
+[root@company ~]# ip addr add dev lo1 10.0.33.33/24
+[root@company ~]#
+```
+
+Для новых адресов настроим пути в сети:
+
+`@network`
+```console
+[root@network ~]# ip route add 10.0.11.11 via 10.0.12.1
+[root@network ~]# ip route add 10.0.33.33 via 10.0.23.3
+[root@network ~]#
+```
+
+Убедимся, что трафик между интерфейсами проходит, однако, поскольку запрет TCP-соединений всё ещё действует, SSH-соединение невозможно:
+
+`@client`
+```console
+[root@client ~]# ping -c3 -I 10.0.11.11 10.0.33.33
+PING 10.0.33.33 (10.0.33.33) from 10.0.11.11 : 56(84) bytes of data.
+64 bytes from 10.0.33.33: icmp_seq=1 ttl=63 time=1.31 ms
+64 bytes from 10.0.33.33: icmp_seq=2 ttl=63 time=0.594 ms
+64 bytes from 10.0.33.33: icmp_seq=3 ttl=63 time=0.759 ms
+
+--- 10.0.33.33 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 0.594/0.886/1.306/0.304 ms
+[root@client ~]#
+```
+
+`@company`
+```console
+[root@company ~]# ssh 10.0.11.11
+ssh: connect to host 10.0.11.11 port 22: Connection refused
+[root@company ~]#
+```
+
+Для создания туннеля необходимо просто создать виртуальный интерфейс специального типа `ipip`, связанный с некоторыми уже существующими адресами. После добавить адреса локальной сети туннеля и использовать его для коммуникации.
+
+`@client`
+```console
+[root@client ~]# ip link add ipip0 type ipip remote 10.0.33.33 local 10.0.11.11
+[root@client ~]# ip addr add dev ipip0 172.16.0.1/24
+[root@client ~]# ip link set ipip0 up
+[root@client ~]#
+```
+
+`@company`
+```console
+[root@company ~]# ip link add ipip0 type ipip remote 10.0.11.11 local 10.0.33.33
+[root@company ~]# ip addr add dev ipip0 172.16.0.2/24
+[root@company ~]# ip link set ipip0 up
+[root@company ~]#
+```
+
+`@company`
+```console
+[root@company ~]# ssh 172.16.0.1
+The authenticity of host '172.16.0.1 (172.16.0.1)' can't be established.
+ED25519 key fingerprint is SHA256:BxaYoHAW5ddfM6EwmgSAZ2tKXCH0zoppLfEcQ8YiGdg.
+This host key is known by the following other names/addresses:
+   ~/.ssh/known_hosts:3: 10.0.12.1
+   ~/.ssh/known_hosts:6: 192.168.0.1
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '172.16.0.1' (ED25519) to the list of known hosts.
+Last login: Mon Oct 20 22:30:47 2025
+[root@client ~]#
+logout
+Connection to 172.16.0.1 closed.
+[root@company ~]#
+```
+
+Никакого шифрования трафика, повторимся, не происходит. Туннель лишь «объединяет» удалённых абонентов в единую «локальную» сеть.
+
+При этом у передаваемых пакетов можно явно заметить два IP-заголовка — _внешний_, по которому производится передача, и _внутренний_, который на концах туннеля и распознают за заголовок пакета «локальной» сети:
+
+`@network`
+```console
+[root@network ~]# tcpdump -c6 -i eth1
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+
+```
+
+`@client`
+```console
+[root@client ~]# ping -c3 -I 172.16.0.1 172.16.0.2
+PING 172.16.0.2 (172.16.0.2) from 172.16.0.1 : 56(84) bytes of data.
+64 bytes from 172.16.0.2: icmp_seq=1 ttl=64 time=0.747 ms
+64 bytes from 172.16.0.2: icmp_seq=2 ttl=64 time=1.06 ms
+64 bytes from 172.16.0.2: icmp_seq=3 ttl=64 time=0.796 ms
+
+--- 172.16.0.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2045ms
+rtt min/avg/max/mdev = 0.747/0.869/1.064/0.139 ms
+[root@client ~]#
+```
+
+`@network`
+```console
+[root@network ~]# tcpdump -c6 -i eth1
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+23:01:53.464000 IP 10.0.11.11 > 10.0.33.33: IP 172.16.0.1 > 172.16.0.2: ICMP echo request, id 4, seq 1, length 64
+23:01:53.464411 IP 10.0.33.33 > 10.0.11.11: IP 172.16.0.2 > 172.16.0.1: ICMP echo reply, id 4, seq 1, length 64
+23:01:54.465498 IP 10.0.11.11 > 10.0.33.33: IP 172.16.0.1 > 172.16.0.2: ICMP echo request, id 4, seq 2, length 64
+23:01:54.465932 IP 10.0.33.33 > 10.0.11.11: IP 172.16.0.2 > 172.16.0.1: ICMP echo reply, id 4, seq 2, length 64
+23:01:55.521020 IP 10.0.11.11 > 10.0.33.33: IP 172.16.0.1 > 172.16.0.2: ICMP echo request, id 4, seq 3, length 64
+23:01:55.521376 IP 10.0.33.33 > 10.0.11.11: IP 172.16.0.2 > 172.16.0.1: ICMP echo reply, id 4, seq 3, length 64
+6 packets captured
+6 packets received by filter
+0 packets dropped by kernel
+[root@network ~]#
 ```
