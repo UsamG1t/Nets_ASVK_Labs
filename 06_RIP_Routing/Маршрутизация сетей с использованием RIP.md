@@ -75,39 +75,37 @@
 [root@R3 ~]#
 ```
 
-Для работы RIP необходимо использовать специальные программы маршрутизации — Routing Daemons. Для выполнения лабораторной используется демон BIRD. Для настройки демона используется конфигурационный файл `/etc/bird/bird.conf` специального вида. Рассмотрим конфигурационный файл настройки для R1:
+Для работы протоколов (в частности, протоколов маршрутизации) необходимо использовать специальные программы-менеджеры, которые управляют настройками и параметрами протоколов — Routing Daemons. Для выполнения лабораторной используется демон [BIRD](https://bird.network.cz/doc/bird-3.html). Для настройки демона используется конфигурационный файл `/etc/bird/bird.conf` специального вида. Рассмотрим конфигурационный файл настройки для R1:
 
 `@R1:/etc/bird/bird.conf`
 ```bird
 router id 10.0.1.1;
 
 protocol kernel {
-        learn all;
-        persist;
-        scan time 20;
-        ipv4 { export all; };
+   learn all;
+   ipv4 { export all; };
 }
 
 protocol device {
-        scan time 10;
+   scan time 10;
 }
 
 protocol rip {
-        interface "*";
-        ipv4 {
-                export all;
-                import all;
-        };
+   interface "eth1", "lo0";
+   ipv4 {
+       import all;
+       export where (net = 10.0.1.0/24) || (net = 10.0.12.0/24);
+   };
 }
 ```
 
-Конфигурационный файл включает в себя:
- + описание уникального идентификатора маршрутизатора в сети, «от имени» которого будут рассылаться данные о маршрутах;
- + структуру `protocol kernel` — она описывает действия, связанные с таблицами маршрутизации ядра системы;
- + структуру `protocol device` — она описывает действия самого сетевого устройства;
- + структуру `protocol rip` — она описывает действия, связанные с маршрутизацией с помощью протокола:
-	 + Экспорт и импорт всех доступных маршрутов по IPv4;
-	 + Экспорт данных всем устройствам за всеми интерфейсами.
+Для работы демона необходимо указывать ключевые параметры конфигурации:
+ + Описание уникального идентификатора маршрутизатора в сети, «от имени» которого будут рассылаться данные о маршрутах;
+ + Структуру `protocol kernel` — она описывает действия, связанные с таблицами маршрутизации ядра системы. Необходимо указать сохранение получаемых данных в таблицах маршрутизации устройства (а не просто передачу этих данных), а также частоту обновления таблиц получаемыми данными;
+ + Структуру `protocol device` — она описывает действия самого сетевого устройства. Необходимо указать периодичность сканирования портов на наличие BIRD-данных от других устройств;
+ + Структуру `protocol rip` — она описывает действия, связанные с маршрутизацией с помощью протокола:
+	 + Указание интерфейсов для приёма-передачи данных RIP;
+	 + Экспорт и импорт маршрутов по IPv4 согласно описанным правилам;
 
 Аналогично опишем конфигурационные файлы для R2 и R3:
 
@@ -116,46 +114,44 @@ protocol rip {
 router id 10.0.2.2;
 
 protocol kernel {
-        learn all;
-        persist;
-        scan time 20;
-        ipv4 { export all; };
+   learn all;
+   ipv4 { export all; };
 }
 
 protocol device {
-        scan time 10;
+   scan time 10;
 }
 
 protocol rip {
-        interface "*";
-        ipv4 {
-                export all;
-                import all;
-        };
+   interface "eth*";
+   ipv4 {
+       import where net != 10.0.1.0/24;
+       export all;
+   };
 }
 ```
+
+Заметим, что `R2` не будет принимать данные, связанные с сетью 10.0.1.0/24, и, соответственно, не будет отправлять их далее по топологии.
 
 `@R3:/etc/bird/bird.conf`
 ```bird
 router id 10.0.3.3;
 
 protocol kernel {
-        learn all;
-        persist;
-        scan time 20;
-        ipv4 { export all; };
+       learn all;
+       ipv4 { export all; };
 }
 
 protocol device {
-        scan time 10;
+   scan time 10;
 }
 
 protocol rip {
-        interface "*";
-        ipv4 {
-                export all;
-                import all;
-        };
+   interface "*";
+   ipv4 {
+       import all;
+       export all;
+   };
 }
 ```
 
@@ -169,15 +165,15 @@ protocol rip {
 [root@R1 ~]# birdc show route
 BIRD +detached. ready.
 Table master4:
-10.0.12.0/24         unicast [kernel1 21:01:42.764] * (10)
-       dev eth1
-10.0.23.0/24         unicast [rip1 21:01:48.903] * (120/2)
-       via 10.0.12.2 on eth1
-10.0.1.0/24          unicast [kernel1 21:08:24.007] * (10)
+10.0.1.0/24          unicast [kernel1 12:25:54.420] * (10)
        dev lo0
-10.0.3.0/24          unicast [rip1 21:08:30.280] * (120/3)
+10.0.12.0/24         unicast [kernel1 12:25:54.420] * (10)
+       dev eth1
+10.0.23.0/24         unicast [rip1 12:26:00.124] * (120/2)
        via 10.0.12.2 on eth1
-10.0.2.0/24          unicast [rip1 21:08:38.363] * (120/2)
+10.0.2.0/24          unicast [rip1 12:26:00.124] * (120/2)
+       via 10.0.12.2 on eth1
+10.0.3.0/24          unicast [rip1 12:26:02.896] * (120/3)
        via 10.0.12.2 on eth1
 [root@R1 ~]# ip route
 10.0.1.0/24 dev lo0 proto kernel scope link src 10.0.1.1 linkdown
@@ -188,10 +184,11 @@ Table master4:
 [root@R1 ~]#
 ```
 
+Убедимся, что информация о маршруте в сеть 10.0.1.0/24 не передалась на `R2` и `R3`
+
 `@R2`
 ```console
 [root@R2 ~]# ip route
-10.0.1.0/24 via 10.0.12.1 dev eth1 proto bird metric 32
 10.0.2.0/24 dev lo0 proto kernel scope link src 10.0.2.2 linkdown
 10.0.3.0/24 via 10.0.23.3 dev eth2 proto bird metric 32
 10.0.12.0/24 dev eth1 proto kernel scope link src 10.0.12.2
@@ -203,7 +200,6 @@ Table master4:
 `@R3`
 ```console
 [root@R3 ~]# ip route
-10.0.1.0/24 via 10.0.23.2 dev eth1 proto bird metric 32
 10.0.2.0/24 via 10.0.23.2 dev eth1 proto bird metric 32
 10.0.3.0/24 dev lo0 proto kernel scope link src 10.0.3.3 linkdown
 10.0.12.0/24 via 10.0.23.2 dev eth1 proto bird metric 32
@@ -240,14 +236,16 @@ rtt min/avg/max/mdev = 0.838/0.910/0.990/0.062 ms
 `@R3`
 ```console
 [root@R3 ~]# ping -c3 10.0.1.1
-PING 10.0.1.1 (10.0.1.1) 56(84) bytes of data.
-64 bytes from 10.0.1.1: icmp_seq=1 ttl=63 time=1.04 ms
-64 bytes from 10.0.1.1: icmp_seq=2 ttl=63 time=1.24 ms
-64 bytes from 10.0.1.1: icmp_seq=3 ttl=63 time=0.989 ms
+ping: connect: Network is unreachable
+[root@R3 ~]# ping -c3 10.0.2.2
+PING 10.0.2.2 (10.0.2.2) 56(84) bytes of data.
+64 bytes from 10.0.2.2: icmp_seq=1 ttl=64 time=0.591 ms
+64 bytes from 10.0.2.2: icmp_seq=2 ttl=64 time=0.448 ms
+64 bytes from 10.0.2.2: icmp_seq=3 ttl=64 time=0.567 ms
 
---- 10.0.1.1 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss, time 2001ms
-rtt min/avg/max/mdev = 0.989/1.088/1.237/0.107 ms
+--- 10.0.2.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2060ms
+rtt min/avg/max/mdev = 0.448/0.535/0.591/0.062 ms
 [root@R3 ~]#
 ```
 
