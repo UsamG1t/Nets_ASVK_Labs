@@ -40,6 +40,7 @@
 	1. Просмотр доступных интерфейсов — `ip [-d] link [show [<interface>]]`
 	2. Включение/выключение интерфейса — `ip link set <interface> {up|down}`
 	3. Создание нового интерфейса — `ip link add dev <name> type <type>`
+	4. Связывание интерфейсов — `ip link set <interface> master <master-interface>`
 
 2. Команды настройки IP-адресов:
 	1. Просмотр интерфейсов с описанием установленных IP-адресов — `ip [-d] addr [show [<interface>]]`
@@ -50,7 +51,11 @@
 	2. Установка/удаление маршрута в таблицу маршрутизации — `ip route {add|del} dev <interface> <IPv4-Net>/<mask>`
 
 4. Команды мониторинга сети:
-	1. Установление мониторинга — `tcpdump [-c<N>] [-n] [-X] -i <interface>`
+	1. Установление мониторинга — `tcpdump [-c<N>] [-n] [-X] [-xx] -i <interface>`
+
+5. Команды настройки VLAN:
+	1. Просмотр настроенных VLAN на интерфейсах — `bridge vlan show`
+	2. Добавление удаление настройки VLAN на интерфейс — `bridge vlan {add|del} vid <vlan-id> dev <interface> [pvid untagged]`
 
 ---
 
