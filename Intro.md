@@ -39,8 +39,9 @@
 1. Команды управления интерфейсом:
 	1. Просмотр доступных интерфейсов — `ip [-d] link [show [<interface>]]`
 	2. Включение/выключение интерфейса — `ip link set <interface> {up|down}`
-	3. Создание нового интерфейса — `ip link add dev <name> type <type>`
-	4. Связывание интерфейсов — `ip link set <interface> master <master-interface>`
+	3. Создание/удаление виртуального интерфейса — `ip link {add|del} dev <name> type <type>`
+	4. Создание/удаление связанного виртуального интерфейса — `ip link {add|del} link <master-interface> name <name> type <type> [<parameters> <*args>]`
+	5. Связывание интерфейсов — `ip link set <interface> master <master-interface>`
 
 2. Команды настройки IP-адресов:
 	1. Просмотр интерфейсов с описанием установленных IP-адресов — `ip [-d] addr [show [<interface>]]`
