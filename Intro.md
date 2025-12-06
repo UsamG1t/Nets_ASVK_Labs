@@ -42,6 +42,7 @@
 	3. Создание/удаление виртуального интерфейса — `ip link {add|del} dev <name> type <type>`
 	4. Создание/удаление связанного виртуального интерфейса — `ip link {add|del} link <master-interface> name <name> type <type> [<parameters> <*args>]`
 	5. Связывание интерфейсов — `ip link set <interface> master <master-interface>`
+	6. Изменение параметров интерфейса —  `ip link set dev <name> [type <type>] <parameter> <*args>`
 
 2. Команды настройки IP-адресов:
 	1. Просмотр интерфейсов с описанием установленных IP-адресов — `ip [-d] addr [show [<interface>]]`
