@@ -36,28 +36,30 @@
 
 ## Терминология
 
-1. Команды управления интерфейсом:
-	1. Просмотр доступных интерфейсов — `ip [-d] link [show [<interface>]]`
-	2. Включение/выключение интерфейса — `ip link set <interface> {up|down}`
-	3. Создание/удаление виртуального интерфейса — `ip link {add|del} dev <name> type <type>`
-	4. Создание/удаление связанного виртуального интерфейса — `ip link {add|del} link <master-interface> name <name> type <type> [<parameters> <*args>]`
-	5. Связывание интерфейсов — `ip link set <interface> master <master-interface>`
-	6. Изменение параметров интерфейса —  `ip link set dev <name> [type <type>] <parameter> <*args>`
+ + Команды управления интерфейсом:
+	 + Просмотр доступных интерфейсов — `ip [-d] link [show [<interface>]]`
+	 + Включение/выключение интерфейса — `ip link set <interface> {up|down}`
+	 + Создание/удаление виртуального интерфейса — `ip link {add|del} dev <name> type <type>`
+	 + Создание/удаление связанного виртуального интерфейса — `ip link {add|del} link <master-interface> name <name> type <type> [<parameters> <*args>]`
+	 + Связывание интерфейсов — `ip link set <interface> master <master-interface>`
+	 + Изменение параметров интерфейса —  `ip link set dev <name> [type <type>] <parameter> <*args>`
 
-2. Команды настройки IP-адресов:
-	1. Просмотр интерфейсов с описанием установленных IP-адресов — `ip [-d] addr [show [<interface>]]`
-	2. Установка/удаление IP-адреса на интерфейсе — `ip addr {add|del} dev <interface> <IPv4>/<mask>`
++ Команды настройки IP-адресов:
+	+ Просмотр интерфейсов с описанием установленных IP-адресов — `ip [-d] addr [show [<interface>]]`
+	+ Установка/удаление IP-адреса на интерфейсе — `ip addr {add|del} dev <interface> <IPv4>/<mask>`
 
-3. Команды управления таблицами маршрутизации:
-	1. Просмотр таблиц маршрутизации — `ip route [list [table <table-name>]]`
-	2. Установка/удаление маршрута в таблицу маршрутизации — `ip route {add|del} dev <interface> <IPv4-Net>/<mask>`
+ + Команды управления таблицами маршрутизации:
+	 + Просмотр таблиц маршрутизации — `ip route [list [table <table-name>]]`
+	 + Установка/удаление маршрута в таблицу маршрутизации — `ip route {add|del} dev <interface> <IPv4-Net>/<mask>`
 
-4. Команды мониторинга сети:
-	1. Установление мониторинга — `tcpdump [-c<N>] [-n] [-X] [-xx] -i <interface>`
+ + Команды мониторинга сети:
+	 + Проверка доступности абонентов в сети — `ping  [-c<N>] [-f] [-I <srcIP>] <dstIP>`
+	 + Установление мониторинга — `tcpdump [-c<N>] [-n] [-X] [-xx] -i <interface>`
+	 + Отслеживание «маршрута» пакета в сети — `traceroute [-s <srcIP>] <dstIP>`
 
-5. Команды настройки VLAN:
-	1. Просмотр настроенных VLAN на интерфейсах — `bridge vlan show`
-	2. Добавление удаление настройки VLAN на интерфейс — `bridge vlan {add|del} vid <vlan-id> dev <interface> [pvid untagged]`
+ + Команды настройки VLAN:
+	 + Просмотр настроенных VLAN на интерфейсах — `bridge vlan show`
+	 + Добавление удаление настройки VLAN на интерфейс — `bridge vlan {add|del} vid <vlan-id> dev <interface> [pvid untagged]`
 
 ---
 
