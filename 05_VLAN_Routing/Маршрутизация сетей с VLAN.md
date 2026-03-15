@@ -241,7 +241,7 @@ listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 
 :warning: ***Важно:*** Поскольку для устройств не зафиксированы номера хостов, их выбор оставляется за исполнителем. При описании команд отчётов используются номера 1, 2, 3, 4 для IP-адресов абонентов и 254 для обозначения IP-адресов маршрутизатора. Необходимо на этом месте указывать выбранные IP-адреса.
 
- + `report 9 pc1`
+ + `report 5 pc1`
 	 + ip a show `<PC1→S1 interface>`
 	 + ip route
 	 + ping -fc3 10.0.{**X**+10}.254
@@ -250,7 +250,7 @@ listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 	 + ping -fc3 10.0.{**X**+10}.3
 	 + ping -fc3 10.0.{**X**+20}.4
 	 + traceroute 10.0.{**X**+10}.3
- + `report 9 pc2`
+ + `report 5 pc2`
 	 + ip a show `<PC2→S1 interface>`
 	 + ip route
 	 + ping -fc3 10.0.{**X**+20}.254
@@ -259,7 +259,7 @@ listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 	 + ping -fc3 10.0.{**X**+10}.3
 	 + ping -fc3 10.0.{**X**+20}.4
 	 + traceroute 10.0.{**X**+20}.4
- + `report 9 pc3`
+ + `report 5 pc3`
 	 + ip a show `<PC3→S2 interface>`
 	 + ip route
 	 + ping -fc3 10.0.{**X**+10}.254
@@ -268,7 +268,7 @@ listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 	 + ping -fc3 10.0.{**X**+20}.2
 	 + ping -fc3 10.0.{**X**+20}.4
 	 + traceroute 10.0.{**X**+10}.1
- + `report 9 pc4`
+ + `report 5 pc4`
 	 + ip a show `<PC4→S2 interface>`
 	 + ip route
 	 + ping -fc3 10.0.{**X**+20}.254
@@ -277,16 +277,16 @@ listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 	 + ping -fc3 10.0.{**X**+20}.2
 	 + ping -fc3 10.0.{**X**+10}.3
 	 + traceroute 10.0.{**X**+20}.2
- + `report 9 r1`
+ + `report 5 r1`
 	 + ip a show `<R1→S2 (vlan X+10) interface>`
 	 + ip a show `<R1→S2 (vlan X+20) interface>`
 	 + ip route
 	 + sysctl net.ipv4.conf.all.forwarding
- + `report 9 s1`
+ + `report 5 s1`
 	 + bridge vlan show
- + `report 9 s2`
+ + `report 5 s2`
 	 + bridge vlan show
 
 
-:round_pushpin: Полученные отчёты `report.09.pc1`, `report.09.pc2`, `report.09.pc3`, `report.09.pc4`, `report.09.r1`, `report.09.s1`, `report.09.s2` через последовательный порт перенести из виртуальной машины и прислать их преподавателю с подписью выполненного варианта.
+:round_pushpin: Полученные отчёты `report.05.pc1`, `report.05.pc2`, `report.05.pc3`, `report.05.pc4`, `report.05.r1`, `report.05.s1`, `report.05.s2` через последовательный порт перенести из виртуальной машины и прислать их преподавателю с подписью выполненного варианта.
 
