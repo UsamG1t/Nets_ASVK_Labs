@@ -1,0 +1,12 @@
+markdown: kramdown
+theme: jekyll-theme-slate
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+title: Network Technologies Labolatories
+description: Practical materials for learning Network Technologies
