@@ -3,6 +3,7 @@ import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote
+from unicodedata import lookup
 
 def normalize_anchor(anchor):
     """
@@ -39,7 +40,7 @@ def convert_links_in_file(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     original_content = content
-    
+
     pattern_with_anchor = r'\]\(([^\)]+\.md)#([^\)]*)\)'
     content = re.sub(pattern_with_anchor, replace_link_with_anchor, content)
     content = re.sub(r'\.md\)', '.html)', content)
@@ -53,6 +54,31 @@ def convert_links_in_file(filepath):
         print(f"  No changes: {filepath}")
         return False
 
+def convert_emojies_in_file(filepath):
+
+    emojies_dict = {
+        r":warning:": lookup("WARNING SIGN"),
+        r':round_pushpin:': lookup("ROUND PUSHPIN"),
+        r':information_source:': lookup("INFORMATION SOURCE"),
+        r':large_blue_diamond:': lookup("LARGE BLUE DIAMOND")
+    }
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+    original_content = content
+
+    for ptn in emojies_dict.keys():
+        content = re.sub(ptn, emojies_dict[ptn], content)
+
+    if content != original_content:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"✓ Update emojies: {filepath}")
+        return True
+    else:
+        print(f"  No changes with emojies: {filepath}")
+        return False
+
 md_files = [f for f in Path('.').rglob('*.md') if '.git' not in str(f)]
     
 if not md_files:
@@ -63,6 +89,7 @@ changed = 0
 for filepath in sorted(md_files):
     if convert_links_in_file(filepath):
         changed += 1
-    
+    convert_emojies_in_file(filepath)
+
 print(f"\nTotal: {len(md_files)} files processed, {changed} files changed")
 
