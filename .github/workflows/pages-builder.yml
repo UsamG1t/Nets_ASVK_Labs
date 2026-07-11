@@ -30,7 +30,12 @@ jobs:
           git fetch origin
           if git rev-parse --verify origin/pages > /dev/null 2>&1; then
             git checkout pages
-            git rebase master
+            if ! git rebase master; then
+              echo "Rebase failed, recreating pages branch"
+              git rebase --abort
+              git checkout master
+              git checkout -b pages
+            fi
           else
             git checkout -b pages
           fi
