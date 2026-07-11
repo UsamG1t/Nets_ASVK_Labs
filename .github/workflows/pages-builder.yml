@@ -35,12 +35,9 @@ jobs:
             git checkout -b pages
           fi
 
-      - name: Replace .md links with .html
+      - name: Convert markdown links
         run: |
-          find . -name "*.md" -type f ! -path "./.git/*" | while read file; do
-            echo "Processing: $file"
-            sed -i 's/\.md)/\.html)/g' "$file"
-          done
+          python3 .github/scripts/convert_links.py
 
       - name: Check for changes
         id: changes
