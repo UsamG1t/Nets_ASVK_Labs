@@ -81,7 +81,7 @@ Destination=10.0.0.0/8
 
 `@client`
 ```console
-[root@client ~]# ip link add dev lo0 type veth
+[root@client ~]# ip link add dev lo0 type dummy
 [root@client ~]# ip link set lo0 up
 [root@client ~]# ip addr add dev lo0 10.0.1.1/24
 ```
@@ -105,7 +105,7 @@ Destination=10.0.0.0/8
 
 `@company`
 ```console
-[root@company ~]# ip link add dev lo0 type veth
+[root@company ~]# ip link add dev lo0 type dummy
 [root@company ~]# ip link set lo0 up
 [root@company ~]# ip addr add dev lo0 10.0.3.3/24
 [root@company ~]#
@@ -421,7 +421,7 @@ Connection to 192.168.0.1 closed.
 
 `@client`
 ```console
-[root@client ~]# ip link add dev lo1 type veth
+[root@client ~]# ip link add dev lo1 type dummy
 [root@client ~]# ip link set lo1 up
 [root@client ~]# ip addr add dev lo1 10.0.11.11/24
 [root@client ~]#
@@ -429,7 +429,7 @@ Connection to 192.168.0.1 closed.
 
 `@company`
 ```console
-[root@company ~]# ip link add dev lo1 type veth
+[root@company ~]# ip link add dev lo1 type dummy
 [root@company ~]# ip link set lo1 up
 [root@company ~]# ip addr add dev lo1 10.0.33.33/24
 [root@company ~]#

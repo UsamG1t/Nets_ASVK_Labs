@@ -10,7 +10,7 @@
  + [Протокол OSPF](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#Протокол-OSPF)
  + [Пример настройки OSPF](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#Пример-настройки-OSPF)
 	 + [Базовая настройка виртуальных машин](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#Базовая-настройка-виртуальных-машин)
-	 + [BIRD Routing Daemon](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#BIRD-Routing-Daemon)
+	 + [FRRouting Daemon](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#FRRouting-Daemon)
 	 + [Настройка OSPF](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#Настройка-OSPF)
  + [Самостоятельная работа](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#Самостоятельная-работа)
 	 + [Варианты заданий](./Маршрутизация%20сетей%20с%20использованием%20OSPF.md#Варианты-заданий)
@@ -19,7 +19,7 @@
 
 **Задачи лабораторной:**
  + Изучить логику работы протокола;
- + Изучить агента маршрутизации BIRD для настройки OSPF;
+ + Изучить агента маршрутизации FRRouting для настройки OSPF;
  + Реализовать тестовую топологию с применением протокола маршрутизации OSPF.
 
 ---
@@ -62,7 +62,7 @@
 ```console
 [root@R1 ~]# ip link set eth1 up
 [root@R1 ~]# ip link set eth2 up
-[root@R1 ~]# ip link add dev lo0 type veth
+[root@R1 ~]# ip link add dev lo0 type dummy
 [root@R1 ~]# ip link set lo0 up
 [root@R1 ~]#
 ```
@@ -70,7 +70,7 @@
 `@R2`
 ```console
 [root@R2 ~]# ip link set eth1 up
-[root@R2 ~]# ip link add dev lo0 type veth
+[root@R2 ~]# ip link add dev lo0 type dummy
 [root@R2 ~]# ip link set lo0 up
 [root@R2 ~]#
 ```
@@ -78,8 +78,8 @@
 `@R3`
 ```console
 [root@R3 ~]# ip link set eth1 up
-[root@R3 ~]# ip link add dev lo0 type veth
-[root@R3 ~]# ip link add dev lo2 type veth
+[root@R3 ~]# ip link add dev lo0 type dummy
+[root@R3 ~]# ip link add dev lo2 type dummy
 [root@R3 ~]# ip link set lo0 up
 [root@R3 ~]# ip link set lo2 up
 [root@R3 ~]#
@@ -139,9 +139,9 @@
 
 ---
 
-### BIRD Routing Daemon
+### FRRouting Daemon
 
-:information_source: Для работы протоколов (в частности, протоколов маршрутизации) необходимо использовать специальные программы-менеджеры, которые управляют настройками и параметрами протоколов — Routing Daemons. Для выполнения лабораторной используется демон [BIRD](https://bird.network.cz/doc/bird-3.html). Для настройки демона используется конфигурационный файл `/etc/bird/bird.conf` специального вида.
+:information_source: Для работы протоколов (в частности, протоколов маршрутизации) необходимо использовать специальные программы-менеджеры, которые управляют настройками и параметрами протоколов — Routing Daemons. Для выполнения лабораторной используется демон [FRRouting](https://frrouting.org/). Для настройки демона используются конфигурационные файлы `/etc/frr/frr.conf` для описания работы протоколов и `/etc/frr/daemons` для подключения используемых протокольных демонов.
 
 ---
 
@@ -149,197 +149,185 @@
 
 :round_pushpin: 1. Опишите (или скопируйте) конфигурационный файл для R1 в соответствующем файле виртуальной машины
 
-`@R1:/etc/bird/bird.conf`
+`@R1:/etc/frr/frr.conf`
 ```console
-router id 10.0.1.1;
-
-protocol kernel {
-       scan time 20;
-       ipv4 { export all; };
-}
-
-protocol device {
-       scan time 10;
-}
-
-protocol ospf SIMPLE {
-       ipv4 { export all; };
-       area 0.0.0.0 {
-               interface "eth1" {
-               };
-               interface "eth2" {
-               };
-               interface "lo0" {
-               };
-       };
-}
+!
+router ospf
+ ospf router-id 10.0.1.1
+ network 10.0.1.0/24  area 0
+ network 10.0.12.0/24 area 0
+ network 10.0.13.0/24 area 1
+ area 1 range 172.16.0.0/24 not-advertise
+!
 ```
 
 :information_source: Конфигурационный файл включает в себя:
+ + указание настраиваемого протокола;
  + описание уникального идентификатора маршрутизатора в сети, «от имени» которого будут рассылаться данные о маршрутах;
- + структуру `protocol kernel` — она описывает действия, связанные с таблицами маршрутизации ядра системы;
- + структуру `protocol device` — она описывает действия самого сетевого устройства;
- + структуру `protocol ospf` — она описывает действия, связанные с маршрутизацией с помощью протокола:
-	 + Экспорт всей OSPF-информации о доступных маршрутах по IPv4;
-	 + Экспорт данных всем устройствам за указанными интерфейсами.
+ + описание сетей, информация о которых будет распространяться через интерфейсы устройства:
+   + для каждой сети необходимо указывать зону OSPF, которой она принадлежит;
+   + для большинства задач настройки локальной связности достаточно основной нулевой зоны;
+ + ограничения о распространении информации о сетях:
+   + для того, чтобы какая-то OSPF-запись не распространялась дальше разрешенной зоны, необходимо явно разделять допустимую и недопустимую зоны и явно указывать запрет на распространение записи дальше зоны;
 
 :round_pushpin: 2. Аналогично опишите (или скопируйте) конфигурационные файлы для R2 и R3
 
-`@R2:/etc/bird/bird.conf`
+`@R2:/etc/frr/frr.conf`
 ```console
-router id 10.0.2.2;
-
-protocol kernel {
-       scan time 20;
-       ipv4 { export all; };
-}
-
-protocol device {
-       scan time 10;
-}
-
-protocol ospf SIMPLE {
-       ipv4 { export all; };
-       area 0.0.0.0 {
-               interface "eth1" {
-               };
-               interface "lo0" {
-               };
-       };
-}
+!
+router ospf
+ ospf router-id 10.0.2.2
+ network 10.0.2.0/24  area 0
+ network 10.0.12.0/24 area 0
+!
 ```
 
-`@R3:/etc/bird/bird.conf`
+`@R3:/etc/frr/frr.conf`
 ```console
-router id 10.0.3.3;
-
-protocol kernel {
-       scan time 20;
-       ipv4 { export all; };
-}
-
-protocol device {
-       scan time 10;
-}
-
-protocol ospf SIMPLE {
-       ipv4 { export all; };
-       area 0.0.0.0 {
-               interface "eth1" {
-               };
-               interface "eth2" {
-               };
-               interface "lo0" {
-               };
-               interface "lo2" {
-               };
-       };
-}
+!
+router ospf
+ ospf router-id 10.0.3.3
+ network 10.0.3.0/24   area 1
+ network 10.0.13.0/24  area 1
+ network 172.16.0.0/24 area 1
+!
 ```
 
-:round_pushpin: 3. С помощью команды `bird` запустите BIRD на _каждом_ из устройств
+:round_pushpin: 3. Для работы модуля OSPF подключите его. Опишите следующие настройки в `/etc/frr/daemons` на каждой ВМ:
 
-:information_source: C помощью команды `birdc` можно посмотреть параметры работы демона.
+`@R1:/etc/frr/daemons`
+```console
+[root@R1 ~]# cat > /etc/frr/daemons
+zebra=yes
+ospfd=yes
+[root@R1 ~]#
+```
 
-:round_pushpin: 4. С помощью команды `birdc show route` посмотрите список OSPF-данных, передаваемых BIRD
+`@R2:/etc/frr/daemons`
+```console
+[root@R2 ~]# cat > /etc/frr/daemons
+zebra=yes
+ospfd=yes
+[root@R2 ~]#
+```
+
+`@R3:/etc/frr/daemons`
+```console
+[root@R3 ~]# cat > /etc/frr/daemons
+zebra=yes
+ospfd=yes
+[root@R3 ~]#
+```
+
+:information_source: Демон `ospfd` отвечает за работу протокола OSPF, демон `zebra` отвечает за работу ядра по обработке таблиц маршрутизации.
+
+:round_pushpin: 4. С помощью команды `systemctl start frr.service` запустите FRRouting на _каждом_ из устройств
+
+:information_source: C помощью утилиты `vtysh` можно посмотреть параметры работы демона.
+
+:round_pushpin: 5. С помощью команды `vtysh -c  'show ip route ospf'` посмотрите список OSPF-данных, передаваемых FRRouting
 
 `@R1`
 ```console
-[root@R1 ~]# bird
-[root@R1 ~]# birdc
-BIRD +detached. ready.
-bird> show route
-Table master4:
-10.0.12.0/24         unicast [SIMPLE 01:41:40.630] * I (150/10) [10.0.1.1]
-       dev eth1
-10.0.13.0/24         unicast [SIMPLE 01:41:40.631] * I (150/10) [10.0.1.1]
-       dev eth2
-10.0.1.1/32          unicast [SIMPLE 01:41:40.631] * I (150/0) [10.0.1.1]
-       dev lo0
-bird>
+[root@R1 ~]# systemctl start frr.service
+<Wait some time...>
+[root@R1 ~]# vtysh -c 'show ip route ospf'
+Codes: K - kernel route, C - connected, L - local, S - static,
+       R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+       T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+       f - OpenFabric, t - Table-Direct,
+       > - selected route, * - FIB route, q - queued, r - rejected, b - backup
+       t - trapped, o - offload failure
+
+IPv4 unicast VRF default:
+O   10.0.1.0/24 [110/10] is directly connected, lo0, weight 1, 00:15:48
+O>* 10.0.2.0/24 [110/110] via 10.0.12.2, eth1, weight 1, 00:15:00
+O>* 10.0.3.0/24 [110/110] via 10.0.13.3, eth2, weight 1, 00:07:03
+O   10.0.12.0/24 [110/100] is directly connected, eth1, weight 1, 00:15:48
+O   10.0.13.0/24 [110/100] is directly connected, eth2, weight 1, 00:07:13
+O>* 172.16.0.0/24 [110/110] via 10.0.13.3, eth2, weight 1, 00:07:03
+[root@R1 ~]#
 ```
 
-:information_source: В таблице маршрутизации после запуска должны появиться новые записи о доступных маршрутах с указанием `proto bird` , означающим, что маршрут получен с помощью BIRD-демона (поскольку маршруты не приходят мгновенно, может потребоваться время на получение всех данных).
+:information_source: В таблице маршрутизации после запуска должны появиться новые записи о доступных маршрутах с указанием `proto ospf` , означающим, что маршрут получен с помощью OSPF-демона FRRouting (поскольку маршруты не приходят мгновенно, может потребоваться время на получение всех данных).
 
-:round_pushpin: 5. С помощью команды управления таблицами маршрутизации убедитесь, что таблицы маршрутизации на устройствах изменились в соответствии с данными от BIRD
+:round_pushpin: 6. С помощью команды управления таблицами маршрутизации убедитесь, что таблицы маршрутизации на устройствах изменились в соответствии с данными от FRRouting
 
 `@R1`
 ```console
 [root@R1 ~]# ip route
-10.0.1.0/24 dev lo0 proto kernel scope link src 10.0.1.1 linkdown
-10.0.1.1 dev lo0 proto bird scope link metric 32 linkdown
-10.0.2.2 via 10.0.12.2 dev eth1 proto bird metric 32
-10.0.3.3 via 10.0.13.3 dev eth2 proto bird metric 32
+10.0.1.0/24 dev lo0 proto kernel scope link src 10.0.1.1
+10.0.2.0/24 nhid 13 via 10.0.12.2 dev eth1 proto ospf metric 20
+10.0.3.0/24 nhid 11 via 10.0.13.3 dev eth2 proto ospf metric 20
 10.0.12.0/24 dev eth1 proto kernel scope link src 10.0.12.1
-10.0.12.0/24 dev eth1 proto bird scope link metric 32
 10.0.13.0/24 dev eth2 proto kernel scope link src 10.0.13.1
-10.0.13.0/24 dev eth2 proto bird scope link metric 32
-172.16.0.1 via 10.0.13.3 dev eth2 proto bird metric 32
-```
-
-`@R2`
-```console
-[root@R2 ~]# ip route
-10.0.2.0/24 dev lo0 proto kernel scope link src 10.0.2.2 linkdown
-10.0.2.2 dev lo0 proto bird scope link metric 32 linkdown
-10.0.12.0/24 dev eth1 proto kernel scope link src 10.0.12.2
-10.0.12.0/24 dev eth1 proto bird scope link metric 32
-[root@R2 ~]#
-
-<Some time later>
-
-[root@R2 ~]# ip route
-10.0.1.1 via 10.0.12.1 dev eth1 proto bird metric 32
-10.0.2.0/24 dev lo0 proto kernel scope link src 10.0.2.2 linkdown
-10.0.2.2 dev lo0 proto bird scope link metric 32 linkdown
-10.0.3.3 via 10.0.12.1 dev eth1 proto bird metric 32
-10.0.12.0/24 dev eth1 proto kernel scope link src 10.0.12.2
-10.0.12.0/24 dev eth1 proto bird scope link metric 32
-10.0.13.0/24 via 10.0.12.1 dev eth1 proto bird metric 32
-172.16.0.1 via 10.0.12.1 dev eth1 proto bird metric 32
-```
-
-`@R3`
-```console
-[root@R3 ~]# ip route
-10.0.1.1 via 10.0.13.1 dev eth1 proto bird metric 32
-10.0.2.2 via 10.0.13.1 dev eth1 proto bird metric 32
-10.0.3.0/24 dev lo0 proto kernel scope link src 10.0.3.3 linkdown
-10.0.3.3 dev lo0 proto bird scope link metric 32 linkdown
-10.0.12.0/24 via 10.0.13.1 dev eth1 proto bird metric 32
-10.0.13.0/24 dev eth1 proto kernel scope link src 10.0.13.3
-10.0.13.0/24 dev eth1 proto bird scope link metric 32
-172.16.0.0/24 dev lo2 proto kernel scope link src 172.16.0.1 linkdown
-172.16.0.1 dev lo2 proto bird scope link metric 32 linkdown
-```
-
-:round_pushpin: 6. С помощью команды `ping -c3 <dstIP>` проверьте достижимость отдельных сетей с разных устройств
-
-`@R1`
-```console
-[root@R1 ~]# ping -c3 10.0.2.2
-PING 10.0.2.2 (10.0.2.2) 56(84) bytes of data.
-64 bytes from 10.0.2.2: icmp_seq=1 ttl=64 time=0.348 ms
-64 bytes from 10.0.2.2: icmp_seq=2 ttl=64 time=0.409 ms
-64 bytes from 10.0.2.2: icmp_seq=3 ttl=64 time=0.392 ms
-
---- 10.0.2.2 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss, time 2024ms
-rtt min/avg/max/mdev = 0.348/0.383/0.409/0.025 ms
+172.16.0.0/24 nhid 11 via 10.0.13.3 dev eth2 proto ospf metric 20
 [root@R1 ~]#
 ```
 
 `@R2`
 ```console
-[root@R2 ~]# ping -c3 172.16.0.1
+[root@R2 ~]# ip route
+10.0.1.0/24 nhid 8 via 10.0.12.1 dev eth1 proto ospf metric 20
+10.0.2.0/24 dev lo0 proto kernel scope link src 10.0.2.2
+10.0.3.0/24 nhid 8 via 10.0.12.1 dev eth1 proto ospf metric 20
+10.0.12.0/24 dev eth1 proto kernel scope link src 10.0.12.2
+10.0.13.0/24 nhid 8 via 10.0.12.1 dev eth1 proto ospf metric 20
+[root@R2 ~]#
+```
+
+`@R3`
+```console
+[root@R3 ~]# ip route
+10.0.1.0/24 nhid 11 via 10.0.13.1 dev eth1 proto ospf metric 20
+10.0.2.0/24 nhid 11 via 10.0.13.1 dev eth1 proto ospf metric 20
+10.0.3.0/24 dev lo0 proto kernel scope link src 10.0.3.3
+10.0.12.0/24 nhid 11 via 10.0.13.1 dev eth1 proto ospf metric 20
+10.0.13.0/24 dev eth1 proto kernel scope link src 10.0.13.3
+172.16.0.0/24 dev lo2 proto kernel scope link src 172.16.0.1
+[root@R3 ~]#
+```
+
+:information_source: Заметьте, что сеть `172.16.0.0/24` не вышла за пределы зоны 1 и не достигла R2.
+
+:round_pushpin: 7. С помощью команды `ping -c3 <dstIP>` проверьте достижимость отдельных сетей с разных устройств
+
+`@R1`
+```console
+[root@R1 ~]# ping -c3 10.0.2.2
+PING 10.0.2.2 (10.0.2.2) 56(84) bytes of data.
+64 bytes from 10.0.2.2: icmp_seq=1 ttl=64 time=0.388 ms
+64 bytes from 10.0.2.2: icmp_seq=2 ttl=64 time=1.05 ms
+64 bytes from 10.0.2.2: icmp_seq=3 ttl=64 time=0.562 ms
+
+--- 10.0.2.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 0.388/0.667/1.053/0.281 ms
+[root@R1 ~]# ping -c3 172.16.0.1
 PING 172.16.0.1 (172.16.0.1) 56(84) bytes of data.
-64 bytes from 172.16.0.1: icmp_seq=1 ttl=63 time=0.665 ms
-64 bytes from 172.16.0.1: icmp_seq=2 ttl=63 time=0.489 ms
-64 bytes from 172.16.0.1: icmp_seq=3 ttl=63 time=0.711 ms
+64 bytes from 172.16.0.1: icmp_seq=1 ttl=64 time=0.336 ms
+64 bytes from 172.16.0.1: icmp_seq=2 ttl=64 time=0.410 ms
+64 bytes from 172.16.0.1: icmp_seq=3 ttl=64 time=0.996 ms
 
 --- 172.16.0.1 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss, time 2067ms
-rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 0.336/0.580/0.996/0.295 ms
+[root@R1 ~]#
+```
+
+`@R2`
+```console
+[root@R2 ~]# ping -c3 10.0.3.3
+PING 10.0.3.3 (10.0.3.3) 56(84) bytes of data.
+64 bytes from 10.0.3.3: icmp_seq=1 ttl=63 time=0.936 ms
+64 bytes from 10.0.3.3: icmp_seq=2 ttl=63 time=2.00 ms
+64 bytes from 10.0.3.3: icmp_seq=3 ttl=63 time=1.46 ms
+
+--- 10.0.3.3 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 0.936/1.467/2.001/0.434 ms
+[root@R2 ~]# ping -c3 172.16.0.1
+ping: connect: Network is unreachable
 [root@R2 ~]#
 ```
 
@@ -391,7 +379,7 @@ rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
  + `report 9 pc1`
 	 + ip a show eth1
 	 + ip route
-	 + cat /etc/bird/bird.conf
+	 + cat /etc/frr/frr.conf
 	 + ping -fc3 10.0.50.1
 	 + ping -fc3 10.0.30.2
 	 + ping -fc3 10.0.40.3
@@ -401,7 +389,7 @@ rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
  + `report 9 pc2`
 	 + ip a show eth1
 	 + ip route
-	 + cat /etc/bird/bird.conf
+	 + cat /etc/frr/frr.conf
 	 + ping -fc3 10.0.50.1
 	 + ping -fc3 10.0.30.2
 	 + ping -fc3 10.0.40.3
@@ -411,7 +399,7 @@ rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
  + `report 9 r1`
 	 + ip a show
 	 + ip route
-	 + cat /etc/bird/bird.conf
+	 + cat /etc/frr/frr.conf
 	 + ping -fc3 10.0.30.2
 	 + ping -fc3 10.0.40.3
 	 + ping -fc3 10.0.111.11
@@ -421,7 +409,7 @@ rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
  + `report 9 r2`
 	 + ip a show
 	 + ip route
-	 + cat /etc/bird/bird.conf
+	 + cat /etc/frr/frr.conf
 	 + ping -fc3 10.0.50.1
 	 + ping -fc3 10.0.40.3
 	 + ping -fc3 10.0.111.11
@@ -431,7 +419,7 @@ rtt min/avg/max/mdev = 0.489/0.621/0.711/0.095 ms
  + `report 9 r3`
 	 + ip a show
 	 + ip route
-	 + cat /etc/bird/bird.conf
+	 + cat /etc/frr/frr.conf
 	 + ping -fc3 10.0.30.2
 	 + ping -fc3 10.0.50.1
 	 + ping -fc3 10.0.111.11

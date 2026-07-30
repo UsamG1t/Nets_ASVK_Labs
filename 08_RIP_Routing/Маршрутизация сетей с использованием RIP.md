@@ -67,7 +67,7 @@ $D_{new}(self,\ j)\ =\ min(D(self,\ j),\ D(self,\ k)\ +\ D(k,\ j))$, где:
 `@R1`
 ```console
 [root@R1 ~]# ip link set eth1 up
-[root@R1 ~]# ip link add dev lo0 type veth
+[root@R1 ~]# ip link add dev lo0 type dummy
 [root@R1 ~]# ip link set lo0 up
 [root@R1 ~]#
 ```
@@ -76,14 +76,14 @@ $D_{new}(self,\ j)\ =\ min(D(self,\ j),\ D(self,\ k)\ +\ D(k,\ j))$, где:
 ```console
 [root@R2 ~]# ip link set eth1 up
 [root@R2 ~]# ip link set eth2 up
-[root@R2 ~]# ip link add dev lo0 type veth
+[root@R2 ~]# ip link add dev lo0 type dummy
 [root@R2 ~]# ip link set lo0 up
 ```
 
 `@R3`
 ```console
 [root@R3 ~]# ip link set eth1 up
-[root@R3 ~]# ip link add dev lo0 type veth
+[root@R3 ~]# ip link add dev lo0 type dummy
 [root@R3 ~]# ip link set lo up
 [root@R3 ~]#
 ```
