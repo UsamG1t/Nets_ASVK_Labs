@@ -25,20 +25,10 @@ jobs:
         id: commit
         run: echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Fetch and rebase pages branch
+      - name: Reset pages branch to master
         run: |
           git fetch origin
-          if git rev-parse --verify origin/pages > /dev/null 2>&1; then
-            git checkout pages
-            if ! git rebase master; then
-              echo "Rebase failed, recreating pages branch"
-              git rebase --abort
-              git checkout master
-              git checkout -b pages
-            fi
-          else
-            git checkout -b pages
-          fi
+          git checkout -B pages master
 
       - name: Convert markdown links
         run: |
@@ -62,9 +52,4 @@ jobs:
       - name: Push pages branch
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git push origin pages
-
-      - name: Message if no changes
-        if: steps.changes.outputs.has_changes == 'false'
-        run: |
-          echo "No .md links found to replace"
+          git push -f origin pages
