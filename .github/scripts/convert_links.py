@@ -80,6 +80,9 @@ def convert_emojies_in_file(filepath):
         return False
 
 def generate_contents(filename):
+    if filename.name in ('Intro.md', 'README.md'):
+        return False
+
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     original_content = content
@@ -139,6 +142,9 @@ def generate_contents(filename):
         return False
 
 def generate_startlines(filename):
+    if filename.name in ('Intro.md', 'README.md'):
+        return False
+
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     original_content = content
@@ -220,7 +226,6 @@ def generate_startlines(filename):
 md_files =  [
                 f for f in Path('.').rglob('*.md')
                 if '.git' not in str(f)
-                and f.name not in ('Intro.md', 'README.md')
             ]
 
 if not md_files:
