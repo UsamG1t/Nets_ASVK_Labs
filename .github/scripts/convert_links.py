@@ -217,8 +217,12 @@ def generate_startlines(filename):
         print(f"  No changes with startlines: {filepath}")
         return False
 
-md_files = [f for f in Path('.').rglob('*.md') if '.git' not in str(f)]
-    
+md_files =  [
+                f for f in Path('.').rglob('*.md')
+                if '.git' not in str(f)
+                and f.name not in ('Intro.md', 'README.md')
+            ]
+
 if not md_files:
     print("No .md files found")
     exit(0)
