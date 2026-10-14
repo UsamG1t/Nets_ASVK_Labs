@@ -145,12 +145,12 @@ def generate_startlines(filename):
     if filename.name in ('Intro.md', 'README.md'):
         return False
 
-    if '[:startlines:]' not in content:
-        return False
-
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     original_content = content
+
+    if '[:startlines:]' not in content:
+        return False
 
     # Получаем имя текущего файла без расширения и директорию
     _name = filename.stem  # Имя файла без расширения
